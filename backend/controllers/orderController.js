@@ -1,19 +1,30 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
-import Stripe from "stripe";
-import Razorpay from "razorpay";
+// import Stripe from "stripe";
+// import Razorpay from "razorpay";
+import paypal from "@paypal/checkout-server-sdk";
 
-//global variables
-const currency = "inr";
+// Global variables
+const currency = "USD"; // PayPal uses USD for sandbox; adjust as needed
 const deliveryCharge = 10;
 
-//gateway initialize
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// // Gateway initialize - Stripe
+// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const razorpayInstance = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// PayPal client setup
+
+const paypalClient = new paypal.core.PayPalHttpClient(
+  new paypal.core.SandboxEnvironment(
+    process.env.PAYPAL_CLIENT_ID,
+    process.env.PAYPAL_CLIENT_SECRET
+  )
+);
+
+// // Razorpay initialization
+// const razorpayInstance = new Razorpay({
+//   key_id: process.env.RAZORPAY_KEY_ID,
+//   key_secret: process.env.RAZORPAY_KEY_SECRET,
+// });
 
 // Placing orders using COD Method
 const placeOrder = async (req, res) => {
@@ -33,7 +44,7 @@ const placeOrder = async (req, res) => {
     const newOrder = new orderModel(orderData);
     await newOrder.save();
 
-    //clear cart data
+    // Clear cart data
     await userModel.findByIdAndUpdate(userId, { cartData: {} });
 
     res.json({ success: true, message: "Order Placed" });
@@ -43,18 +54,56 @@ const placeOrder = async (req, res) => {
   }
 };
 
-// Placing orders using Stripe Method
-const placeOrderStripe = async (req, res) => {
+// Placing orders using PayPal Method
+const placeOrderPaypal = async (req, res) => {
   try {
     const { userId, items, amount, address } = req.body;
     const { origin } = req.headers;
+
+    console.log("PayPal Request Body:", JSON.stringify(req.body, null, 2));
+
+    // Calculate item_total from items array
+    const itemTotal = items
+      .reduce((total, item) => {
+        const itemPrice = parseFloat(item.price) || 0;
+        const itemQuantity = parseInt(item.quantity) || 0;
+        const itemSubtotal = itemPrice * itemQuantity;
+        console.log(
+          `Item: ${item.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemSubtotal}`
+        );
+        return total + itemSubtotal;
+      }, 0)
+      .toFixed(2);
+
+    // console.log("Calculated Item Total:", itemTotal);
+    // console.log("Delivery Charge:", deliveryCharge);
+    // console.log(
+    //   "Total with Delivery:",
+    //   (parseFloat(itemTotal) + deliveryCharge).toFixed(2)
+    // );
+    // console.log("Frontend Amount:", amount);
+
+    // Validate frontend amount against item_total + deliveryCharge
+    const frontendAmount = parseFloat(amount).toFixed(2);
+    const expectedTotal = (parseFloat(itemTotal) + deliveryCharge).toFixed(2);
+    if (
+      Math.abs(parseFloat(frontendAmount) - parseFloat(expectedTotal)) > 0.01
+    ) {
+      console.warn(
+        "Amount mismatch: Frontend amount does not match calculated total with delivery"
+      );
+      return res.json({
+        success: false,
+        message: `Amount mismatch: Frontend amount (${frontendAmount}) does not match calculated total with delivery (${expectedTotal})`,
+      });
+    }
 
     const orderData = {
       userId,
       items,
       address,
-      amount,
-      paymentMethod: "Stripe",
+      amount: parseFloat(expectedTotal),
+      paymentMethod: "PayPal",
       payment: false,
       date: Date.now(),
     };
@@ -62,115 +111,106 @@ const placeOrderStripe = async (req, res) => {
     const newOrder = new orderModel(orderData);
     await newOrder.save();
 
-    const line_items = items.map((item) => ({
-      price_data: {
-        currency: currency,
-        productData: {
-          name: item.name,
+    const request = new paypal.orders.OrdersCreateRequest();
+    request.prefer("return=representation");
+    request.requestBody({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: currency,
+            value: expectedTotal,
+            breakdown: {
+              item_total: { currency_code: currency, value: itemTotal },
+              shipping: {
+                currency_code: currency,
+                value: deliveryCharge.toFixed(2),
+              },
+            },
+          },
+          items: items.map((item) => ({
+            name: item.name || "Unknown Item",
+            unit_amount: {
+              currency_code: currency,
+              value: parseFloat(item.price).toFixed(2),
+            },
+            quantity: item.quantity.toString(),
+          })),
         },
-        unit_amount: item.price * 100,
+      ],
+      application_context: {
+        return_url: `${origin}/verify?success=true&orderId=${newOrder._id}`,
+        cancel_url: `${origin}/verify?success=false&orderId=${newOrder._id}`,
       },
-      quantity: item.quantity,
-    }));
-
-    line_items.push({
-      price_data: {
-        currency: currency,
-        productData: {
-          name: "Delivery Charges",
-        },
-        unit_amount: deliveryCharge * 100,
-      },
-      quantity: 1,
     });
 
-    const session = await stripe.checkout.sessions.create({
-      success_url: `${origin}/verify?success=true&orderId=${newOrder._id}`,
-      cancel_url: `${origin}/verify?success=false&orderId=${newOrder._id}`,
-      line_items,
-      mode: "payment",
-    });
+    console.log("PayPal API Request:", JSON.stringify(request.body, null, 2));
 
-    res.json({ success: true, session_url: session.url });
+    const response = await paypalClient.execute(request);
+    const approvalUrl = response.result.links.find(
+      (link) => link.rel === "approve"
+    ).href;
+
+    res.json({ success: true, session_url: approvalUrl });
   } catch (error) {
-    console.log(error);
+    console.error(
+      "PayPal Error:",
+      error.response ? error.response.data : error
+    );
     res.json({ success: false, message: error.message });
   }
 };
 
-// Verify Stripe
-const verifyStripe = async (req, res) => {
-  const { orderId, success, userId } = req.body;
+// Verify PayPal payment
+const verifyPaypal = async (req, res) => {
+  const { orderId, success, userId, paypal_order_id } = req.body;
 
   try {
+    console.log("Verify PayPal Request:", {
+      orderId,
+      success,
+      userId,
+      paypal_order_id,
+    });
+
     if (success === "true") {
-      await orderModel.findByIdAndUpdate(orderId, { payment: true });
-      await userModel.findByIdAndUpdate(userId, { cartData: {} });
-      res.json({ success: true });
+      const request = new paypal.orders.OrdersCaptureRequest(paypal_order_id);
+      const response = await paypalClient.execute(request);
+
+      console.log(
+        "PayPal Capture Response:",
+        JSON.stringify(response.result, null, 2)
+      );
+
+      if (response.result.status === "COMPLETED") {
+        await orderModel.findByIdAndUpdate(orderId, { payment: true });
+        await userModel.findByIdAndUpdate(userId, { cartData: {} });
+        res.json({ success: true });
+      } else {
+        await orderModel.findByIdAndDelete(orderId);
+        res.json({ success: false, message: "Payment not completed" });
+      }
     } else {
       await orderModel.findByIdAndDelete(orderId);
       res.json({ success: false });
     }
   } catch (error) {
-    console.log(error);
+    console.error(
+      "PayPal Verify Error:",
+      error.response ? error.response.data : error
+    );
     res.json({ success: false, message: error.message });
   }
 };
 
-// Placing orders using Razorpay Method
-const placeOrderRazorpay = async (req, res) => {
-  try {
-    const { userId, items, amount, address } = req.body;
-
-    const orderData = {
-      userId,
-      items,
-      address,
-      amount,
-      paymentMethod: "Razorpay",
-      payment: false,
-      date: Date.now(),
-    };
-
-    const newOrder = new orderModel(orderData);
-    await newOrder.save();
-
-    const options = {
-      amount: amount * 100,
-      currency: currency.toUpperCase(),
-      reciept: newOrder._id.toString(),
-    };
-
-    await razorpayInstance.orders.create(options, (error, order) => {
-      if (error) {
-        console.log(error);
-        return res.json({ success: false, message: error });
-      }
-      res.json({ success: true, order });
-    });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-const verifyRazorpay = async (req, res) => {
-  try {
-    const { userId, razorpay_order_id } = req.body;
-
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
-    if (orderInfo.status === "paid") {
-      await orderModel.findByIdAndUpdate(orderInfo.receipt, { payment: true });
-      await userModel.findByIdAndUpdate(userId, { cartData: {} });
-      res.json({ success: true, message: "Payment Successful" });
-    } else {
-      res.json({ success: false, message: "Payment Failed" });
-    }
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
+// // Placing orders using Stripe Method
+// const placeOrderStripe = async (req, res) => { ... };
+// // Verify Stripe
+// const verifyStripe = async (req, res) => { ... };
+// // Placing orders using Razorpay Method
+// const placeOrderRazorpay = async (req, res) => { ... };
+// // Verify Razorpay
+// const verifyRazorpay = async (req, res) => { ... };
 
 // All Orders data for Admin Panel
 const allOrders = async (req, res) => {
@@ -209,11 +249,13 @@ const updateStatus = async (req, res) => {
 };
 
 export {
-  verifyRazorpay,
-  verifyStripe,
+  // verifyRazorpay,
+  // verifyStripe,
+  verifyPaypal,
   placeOrder,
-  placeOrderStripe,
-  placeOrderRazorpay,
+  // placeOrderStripe,
+  placeOrderPaypal,
+  // placeOrderRazorpay,
   allOrders,
   userOrders,
   updateStatus,

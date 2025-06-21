@@ -1,15 +1,16 @@
 import React, { useContext, useEffect } from "react";
 import { ShopContext } from "../context/ShopContext";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
 
 const Verify = () => {
   const { navigate, token, setCartItems, backendUrl } = useContext(ShopContext);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const success = searchParams.get("success");
   const orderId = searchParams.get("orderId");
+  const paypalOrderId = searchParams.get("PayerID");
 
   const verifyPayment = async () => {
     try {
@@ -17,9 +18,17 @@ const Verify = () => {
         return null;
       }
 
+      // // Verify Stripe payment
+      // const response = await axios.post(
+      //   backendUrl + "/api/order/verifyStripe",
+      //   { success, orderId },
+      //   { headers: { token } }
+      // );
+
+      // Verify PayPal payment
       const response = await axios.post(
-        backendUrl + "/api/order/verifyStripe",
-        { success, orderId },
+        backendUrl + "/api/order/verifyPaypal",
+        { success, orderId, paypal_order_id: paypalOrderId },
         { headers: { token } }
       );
 

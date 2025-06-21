@@ -38,37 +38,6 @@ const PlaceOrder = () => {
     setFormData((data) => ({ ...data, [name]: value }));
   };
 
-  const initPay = (order) => {
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: order.amount,
-      currency: order.currency,
-      name: "Order Payment",
-      description: "Order Payment",
-      order_id: order.id,
-      reciept: order.reciept,
-      handler: async (response) => {
-        console.log(response);
-        try {
-          const { data } = await axios.post(
-            backendUrl + "/api/order/verifyRazorpay",
-            response,
-            { headers: { token } }
-          );
-          if (data.success) {
-            navigate("/orders");
-            setCartItems({});
-          }
-        } catch (error) {
-          console.log(error);
-          toast.error(error);
-        }
-      },
-    };
-    const rzp = new window.Razorpay(options);
-    rzp.open();
-  };
-
   const onSubmitHandler = async (event) => {
     event.preventDefault();
     try {
@@ -81,21 +50,35 @@ const PlaceOrder = () => {
             );
             if (itemInfo) {
               itemInfo.size = item;
-              itemInfo.quantity = cartItems[items][item];
+              itemInfo.quantity = parseInt(cartItems[items][item]);
+              itemInfo.price = parseFloat(itemInfo.price);
               orderItems.push(itemInfo);
             }
           }
         }
       }
 
+      const calculatedAmount = orderItems.reduce((total, item) => {
+        const subtotal = item.price * item.quantity;
+        console.log(
+          `Frontend Item: ${item.name}, Price: ${item.price}, Quantity: ${item.quantity}, Subtotal: ${subtotal}`
+        );
+        return total + subtotal;
+      }, 0);
+
+      console.log("Frontend Calculated Amount:", calculatedAmount);
+      console.log("getCartAmount():", getCartAmount());
+      console.log("Delivery Fee:", delivery_fee);
+
       let orderData = {
         address: formData,
         items: orderItems,
-        amount: getCartAmount() + delivery_fee,
+        amount: calculatedAmount + delivery_fee,
       };
 
+      console.log("Frontend Order Data:", JSON.stringify(orderData, null, 2));
+
       switch (method) {
-        //API calls for COD
         case "cod":
           const response = await axios.post(
             backendUrl + "/api/order/place",
@@ -111,28 +94,19 @@ const PlaceOrder = () => {
           }
           break;
 
-        case "stripe":
-          const responseStripe = await axios.post(
-            backendUrl + "/api/order/stripe",
+        case "paypal":
+          const responsePaypal = await axios.post(
+            backendUrl + "/api/order/paypal",
             orderData,
             { headers: { token } }
           );
-          if (responseStripe.data.success) {
-            const { session_url } = responseStripe.data;
+          if (responsePaypal.data.success) {
+            const { session_url } = responsePaypal.data;
             window.location.replace(session_url);
           } else {
-            toast.error(responseStripe.data.message);
-          }
-          break;
-
-        case "razorpay":
-          const responseRazorpay = await axios.post(
-            backendUrl + "/api/order/razorpay",
-            orderData,
-            { headers: { token } }
-          );
-          if (responseRazorpay.data.success) {
-            initPay(responseRazorpay.data.order);
+            toast.error(
+              responsePaypal.data.message || "PayPal payment initiation failed"
+            );
           }
           break;
 
@@ -255,26 +229,15 @@ const PlaceOrder = () => {
           {/* ------------ Payment Method Selection ------------ */}
           <div className="flex gap-3 flex-col lg:flex-row">
             <div
-              onClick={() => setMethod("stripe")}
+              onClick={() => setMethod("paypal")}
               className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
             >
               <p
                 className={`min-w-3.5 h-3.5 border rounded-full ${
-                  method === "stripe" ? "bg-green-400" : ""
+                  method === "paypal" ? "bg-green-400" : ""
                 }`}
               ></p>
-              <img className="h-5 mx-4" src={assets.stripe_logo} alt="" />
-            </div>
-            <div
-              onClick={() => setMethod("razorpay")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  method === "razorpay" ? "bg-green-400" : ""
-                }`}
-              ></p>
-              <img className="h-5 mx-4" src={assets.razorpay_logo} alt="" />
+              <img className="h-5 mx-4" src={assets.paypal_logo} alt="PayPal" />
             </div>
             <div
               onClick={() => setMethod("cod")}
