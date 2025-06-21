@@ -5,14 +5,13 @@ import userModel from "../models/userModel.js";
 import paypal from "@paypal/checkout-server-sdk";
 
 // Global variables
-const currency = "USD"; // PayPal uses USD for sandbox; adjust as needed
+const currency = "USD";
 const deliveryCharge = 10;
 
 // // Gateway initialize - Stripe
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // PayPal client setup
-
 const paypalClient = new paypal.core.PayPalHttpClient(
   new paypal.core.SandboxEnvironment(
     process.env.PAYPAL_CLIENT_ID,
@@ -60,7 +59,7 @@ const placeOrderPaypal = async (req, res) => {
     const { userId, items, amount, address } = req.body;
     const { origin } = req.headers;
 
-    console.log("PayPal Request Body:", JSON.stringify(req.body, null, 2));
+    // console.log("PayPal Request Body:", JSON.stringify(req.body, null, 2));
 
     // Calculate item_total from items array
     const itemTotal = items
@@ -68,9 +67,9 @@ const placeOrderPaypal = async (req, res) => {
         const itemPrice = parseFloat(item.price) || 0;
         const itemQuantity = parseInt(item.quantity) || 0;
         const itemSubtotal = itemPrice * itemQuantity;
-        console.log(
-          `Item: ${item.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemSubtotal}`
-        );
+        // console.log(
+        //   `Item: ${item.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemSubtotal}`
+        // );
         return total + itemSubtotal;
       }, 0)
       .toFixed(2);
@@ -139,19 +138,21 @@ const placeOrderPaypal = async (req, res) => {
         },
       ],
       application_context: {
-        return_url: `${origin}/verify?success=true&orderId=${newOrder._id}`,
+        return_url: `${origin}/verify?success=true&orderId=${newOrder._id}`, // Remove {orderID} placeholder
         cancel_url: `${origin}/verify?success=false&orderId=${newOrder._id}`,
       },
     });
 
-    console.log("PayPal API Request:", JSON.stringify(request.body, null, 2));
+    // console.log("PayPal API Request:", JSON.stringify(request.body, null, 2));
 
     const response = await paypalClient.execute(request);
     const approvalUrl = response.result.links.find(
       (link) => link.rel === "approve"
     ).href;
+    const paypalOrderId = response.result.id; // Capture the PayPal order ID
 
-    res.json({ success: true, session_url: approvalUrl });
+    // Return the paypalOrderId to the frontend for verification
+    res.json({ success: true, session_url: approvalUrl, paypalOrderId });
   } catch (error) {
     console.error(
       "PayPal Error:",
@@ -163,28 +164,27 @@ const placeOrderPaypal = async (req, res) => {
 
 // Verify PayPal payment
 const verifyPaypal = async (req, res) => {
-  const { orderId, success, userId, paypal_order_id } = req.body;
+  const { orderId, success, paypal_order_id } = req.body;
 
   try {
-    console.log("Verify PayPal Request:", {
-      orderId,
-      success,
-      userId,
-      paypal_order_id,
-    });
+    // console.log("Verify PayPal Request:", {
+    //   orderId,
+    //   success,
+    //   paypal_order_id,
+    // });
 
     if (success === "true") {
       const request = new paypal.orders.OrdersCaptureRequest(paypal_order_id);
       const response = await paypalClient.execute(request);
 
-      console.log(
-        "PayPal Capture Response:",
-        JSON.stringify(response.result, null, 2)
-      );
+      // console.log(
+      //   "PayPal Capture Response:",
+      //   JSON.stringify(response.result, null, 2)
+      // );
 
       if (response.result.status === "COMPLETED") {
         await orderModel.findByIdAndUpdate(orderId, { payment: true });
-        await userModel.findByIdAndUpdate(userId, { cartData: {} });
+        await userModel.findByIdAndUpdate(req.body.userId, { cartData: {} });
         res.json({ success: true });
       } else {
         await orderModel.findByIdAndDelete(orderId);

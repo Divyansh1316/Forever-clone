@@ -31,6 +31,8 @@ const PlaceOrder = () => {
     phone: "",
   });
 
+  const [paypalOrderId, setPaypalOrderId] = useState(null);
+
   const onChangeHandler = (event) => {
     const name = event.target.name;
     const value = event.target.value;
@@ -60,15 +62,15 @@ const PlaceOrder = () => {
 
       const calculatedAmount = orderItems.reduce((total, item) => {
         const subtotal = item.price * item.quantity;
-        console.log(
-          `Frontend Item: ${item.name}, Price: ${item.price}, Quantity: ${item.quantity}, Subtotal: ${subtotal}`
-        );
+        // console.log(
+        //   `Frontend Item: ${item.name}, Price: ${item.price}, Quantity: ${item.quantity}, Subtotal: ${subtotal}`
+        // );
         return total + subtotal;
       }, 0);
 
-      console.log("Frontend Calculated Amount:", calculatedAmount);
-      console.log("getCartAmount():", getCartAmount());
-      console.log("Delivery Fee:", delivery_fee);
+      // console.log("Frontend Calculated Amount:", calculatedAmount);
+      // console.log("getCartAmount():", getCartAmount());
+      // console.log("Delivery Fee:", delivery_fee);
 
       let orderData = {
         address: formData,
@@ -76,7 +78,7 @@ const PlaceOrder = () => {
         amount: calculatedAmount + delivery_fee,
       };
 
-      console.log("Frontend Order Data:", JSON.stringify(orderData, null, 2));
+      // console.log("Frontend Order Data:", JSON.stringify(orderData, null, 2));
 
       switch (method) {
         case "cod":
@@ -101,8 +103,11 @@ const PlaceOrder = () => {
             { headers: { token } }
           );
           if (responsePaypal.data.success) {
-            const { session_url } = responsePaypal.data;
-            window.location.replace(session_url);
+            const { session_url, paypalOrderId: receivedPaypalOrderId } =
+              responsePaypal.data;
+            setPaypalOrderId(receivedPaypalOrderId);
+            localStorage.setItem("paypalOrderId", receivedPaypalOrderId); // Store before redirect
+            window.location.replace(session_url); // Trigger PayPal flow
           } else {
             toast.error(
               responsePaypal.data.message || "PayPal payment initiation failed"
