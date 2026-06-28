@@ -127,27 +127,6 @@ npm run dev
 npm run dev
 ```
 
----
-
-## 📸 Screenshots
-
-You can add screenshots like:
-
-* Home Page
-* Product Listing
-* Product Details
-* Shopping Cart
-* Checkout
-* Admin Dashboard
-
-Example:
-
-```md
-![Home Page](screenshots/home.png)
-```
-
----
-
 ## 🔮 Future Improvements
 
 * Wishlist functionality
