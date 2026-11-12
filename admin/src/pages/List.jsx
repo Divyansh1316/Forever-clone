@@ -1,24 +1,10 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { backendUrl, currency } from "../App";
+import { backendUrl, currency } from "../config";
 import { toast } from "react-toastify";
 
 const List = ({ token }) => {
   const [list, setList] = useState([]);
-
-  const fetchList = async () => {
-    try {
-      const response = await axios.get(backendUrl + "/api/product/list");
-      if (response.data.success) {
-        setList(response.data.products);
-      } else {
-        toast.error(response.data.message);
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error(error.message);
-    }
-  };
 
   const removeProduct = async (id) => {
     try {
@@ -30,7 +16,7 @@ const List = ({ token }) => {
 
       if (response.data.success) {
         toast.success(response.data.message);
-        await fetchList();
+        setList((current) => current.filter((product) => product._id !== id));
       } else {
         toast.error(response.data.message);
       }
@@ -41,7 +27,19 @@ const List = ({ token }) => {
   };
 
   useEffect(() => {
-    fetchList();
+    let cancelled = false;
+    axios
+      .get(backendUrl + "/api/product/list")
+      .then((response) => {
+        if (cancelled) return;
+        if (response.data.success) setList(response.data.products);
+        else toast.error(response.data.message);
+      })
+      .catch((error) => toast.error(error.message));
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

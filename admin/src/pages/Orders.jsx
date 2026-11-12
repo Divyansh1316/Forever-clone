@@ -2,33 +2,12 @@ import React from "react";
 import { useEffect } from "react";
 import { useState } from "react";
 import axios from "axios";
-import { backendUrl, currency } from "../App";
+import { backendUrl, currency } from "../config";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 const Orders = ({ token }) => {
   const [orders, setOrders] = useState([]);
-
-  const fetchAllOrders = async () => {
-    if (!token) {
-      return null;
-    }
-
-    try {
-      const response = await axios.post(
-        backendUrl + "/api/order/list",
-        {},
-        { headers: { token } }
-      );
-
-      if (response.data.success) {
-        setOrders(response.data.orders.reverse());
-      } else {
-        toast.error(response.data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const statusHandler = async (event, orderId) => {
     try {
@@ -42,17 +21,31 @@ const Orders = ({ token }) => {
       );
 
       if (response.data.success) {
-        await fetchAllOrders();
+        setRefreshKey((current) => current + 1);
+      } else {
+        toast.error(response.data.message);
       }
     } catch (error) {
-      console.log(error);
-      toast.error(response.data.message);
+      toast.error(error.message);
     }
   };
 
   useEffect(() => {
-    fetchAllOrders();
-  }, [token]);
+    if (!token) return;
+    let cancelled = false;
+    axios
+      .post(backendUrl + "/api/order/list", {}, { headers: { token } })
+      .then((response) => {
+        if (cancelled) return;
+        if (response.data.success) setOrders(response.data.orders);
+        else toast.error(response.data.message);
+      })
+      .catch((error) => toast.error(error.message));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, refreshKey]);
 
   return (
     <div>

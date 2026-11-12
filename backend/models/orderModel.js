@@ -8,8 +8,11 @@ const orderSchema = new mongoose.Schema({
   status: { type: String, required: true, default: "Order Placed" },
   paymentMethod: { type: String, required: true },
   payment: { type: Boolean, required: true, default: false },
+  paypalOrderId: { type: String, select: false },
   date: { type: Number, required: true },
 });
+
+orderSchema.index({ userId: 1, date: -1, _id: -1 });
 
 const orderModel =
   mongoose.models.order || mongoose.model("order", orderSchema);

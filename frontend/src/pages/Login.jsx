@@ -1,15 +1,16 @@
 import React, { useContext, useEffect, useState } from "react";
-import { ShopContext } from "../context/ShopContext";
+import { ShopContext } from "../context/ShopContext.js";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const Login = () => {
-  const [currentState, setCurrentState] = useState("Login");
+const Login = ({ initialState = "Login" }) => {
+  const [currentState, setCurrentState] = useState(initialState);
   const { token, setToken, navigate, backendUrl } = useContext(ShopContext);
 
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
@@ -39,8 +40,10 @@ const Login = () => {
         }
       }
     } catch (error) {
-      console.log(error);
-      toast.error(error.message);
+      const message = error.response?.status === 404
+        ? "The login service was not found. Check the backend URL and deployment."
+        : error.response?.data?.message || "Unable to sign in. Please try again.";
+      toast.error(message);
     }
   };
 
@@ -48,16 +51,16 @@ const Login = () => {
     if (token) {
       navigate("/");
     }
-  }, [token]);
+  }, [navigate, token]);
 
   return (
     <form
       onSubmit={onSubmitHandler}
-      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
+      className="mx-auto mt-14 flex w-[90%] flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-gray-800 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 sm:max-w-96 sm:p-8"
     >
       <div className="inline-flex items-center gap-2 mb-2 mt-10">
         <p className="prata-regular text-3xl">{currentState}</p>
-        <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
+        <hr className="border-none h-[1.5px] w-8 bg-gray-800 dark:bg-zinc-300" />
       </div>
       {currentState === "Login" ? (
         ""
@@ -66,7 +69,7 @@ const Login = () => {
           onChange={(e) => setName(e.target.value)}
           value={name}
           type="text"
-          className="w-full px-3 py-2 border border-gray-800"
+          className="w-full rounded-md border border-gray-800 bg-white px-3 py-2 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
           placeholder="Name"
           required
         />
@@ -75,18 +78,30 @@ const Login = () => {
         onChange={(e) => setEmail(e.target.value)}
         value={email}
         type="email"
-        className="w-full px-3 py-2 border border-gray-800"
+        className="w-full rounded-md border border-gray-800 bg-white px-3 py-2 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
         placeholder="Email"
         required
       />
-      <input
-        onChange={(e) => setPassword(e.target.value)}
-        value={password}
-        type="password"
-        className="w-full px-3 py-2 border border-gray-800"
-        placeholder="Password"
-        required
-      />
+      <div className="relative w-full">
+        <input
+          onChange={(e) => setPassword(e.target.value)}
+          value={password}
+          type={showPassword ? "text" : "password"}
+          autoComplete={currentState === "Login" ? "current-password" : "new-password"}
+          className="w-full rounded-md border border-gray-800 bg-white px-3 py-2 pr-16 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
+          placeholder="Password"
+          required
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword((visible) => !visible)}
+          aria-label={showPassword ? "Hide password" : "Show password"}
+          aria-pressed={showPassword}
+          className="absolute inset-y-0 right-3 text-xs text-gray-600 hover:text-gray-900 dark:text-zinc-300 dark:hover:text-white"
+        >
+          {showPassword ? "Hide" : "Show"}
+        </button>
+      </div>
       <div className="w-full flex justify-between text-sm mt-[-8px]">
         <p className="cursor-pointer">Forgot your password?</p>
         {currentState === "Login" ? (
@@ -105,7 +120,7 @@ const Login = () => {
           </p>
         )}
       </div>
-      <button className="bg-black text-white font-light px-8 py-2 mt-4">
+      <button className="mt-4 rounded-md bg-black px-8 py-2 font-light text-white dark:bg-zinc-100 dark:text-zinc-900">
         {currentState === "Login" ? "Sign In" : "Sign Up"}
       </button>
     </form>

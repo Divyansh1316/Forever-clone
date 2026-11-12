@@ -1,262 +1,264 @@
+import mongoose from "mongoose";
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
-// import Stripe from "stripe";
-// import Razorpay from "razorpay";
-import paypal from "@paypal/checkout-server-sdk";
+import productModel from "../models/productModel.js";
+import {
+  Client as PayPalClient,
+  Environment as PayPalEnvironment,
+  OrdersController,
+  PaypalExperienceUserAction,
+} from "@paypal/paypal-server-sdk";
+import { allowedOrigins } from "../config/security.js";
 
-// Global variables
 const currency = "USD";
 const deliveryCharge = 10;
+const paypalClient = new PayPalClient({
+  environment:
+    process.env.PAYPAL_MODE === "live"
+      ? PayPalEnvironment.Production
+      : PayPalEnvironment.Sandbox,
+  timeout: 15_000,
+  clientCredentialsAuthCredentials: {
+    oAuthClientId: process.env.PAYPAL_CLIENT_ID || "",
+    oAuthClientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
+  },
+});
+const paypalOrders = new OrdersController(paypalClient);
 
-// // Gateway initialize - Stripe
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const buildOrderItems = async (items) => {
+  if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
+    throw new Error("Invalid order items");
+  }
 
-// PayPal client setup
-const paypalClient = new paypal.core.PayPalHttpClient(
-  new paypal.core.SandboxEnvironment(
-    process.env.PAYPAL_CLIENT_ID,
-    process.env.PAYPAL_CLIENT_SECRET
-  )
-);
+  const validItems = items.map((item) => {
+    if (
+      !mongoose.Types.ObjectId.isValid(item?._id) ||
+      !Number.isInteger(item?.quantity) || item.quantity < 1 || item.quantity > 99 ||
+      typeof item?.size !== "string" || item.size.length > 30
+    ) throw new Error("Invalid order items");
+    return item;
+  });
 
-// // Razorpay initialization
-// const razorpayInstance = new Razorpay({
-//   key_id: process.env.RAZORPAY_KEY_ID,
-//   key_secret: process.env.RAZORPAY_KEY_SECRET,
-// });
+  const ids = [...new Set(validItems.map((item) => item._id.toString()))];
+  const products = await productModel.find({ _id: { $in: ids } }).lean();
+  const productsById = new Map(products.map((product) => [product._id.toString(), product]));
+  const orderItems = validItems.map((item) => {
+    const product = productsById.get(item._id.toString());
+    if (!product || !product.sizes.includes(item.size)) throw new Error("Invalid order items");
+    return { ...product, size: item.size, quantity: item.quantity };
+  });
 
-// Placing orders using COD Method
+  const subtotalCents = orderItems.reduce(
+    (sum, item) => sum + Math.round(item.price * 100) * item.quantity,
+    0
+  );
+  if (!Number.isSafeInteger(subtotalCents) || subtotalCents <= 0) {
+    throw new Error("Invalid order total");
+  }
+  return { orderItems, amount: (subtotalCents + deliveryCharge * 100) / 100, subtotalCents };
+};
+
+const normalizeAddress = (address) => {
+  const fields = ["firstName", "lastName", "email", "street", "city", "state", "zipcode", "country", "phone"];
+  const valid = address && typeof address === "object" && !Array.isArray(address) && fields.every(
+    (field) => typeof address[field] === "string" && address[field].trim().length > 0 && address[field].length <= 200
+  );
+  return valid
+    ? Object.fromEntries(fields.map((field) => [field, address[field].trim()]))
+    : null;
+};
+
 const placeOrder = async (req, res) => {
   try {
-    const { userId, items, amount, address } = req.body;
-
-    const orderData = {
-      userId,
-      items,
-      address,
+    const { items, address } = req.body || {};
+    const safeAddress = normalizeAddress(address);
+    if (!safeAddress) {
+      return res.status(400).json({ success: false, message: "Invalid delivery address" });
+    }
+    const { orderItems, amount } = await buildOrderItems(items);
+    const order = await orderModel.create({
+      userId: req.userId,
+      items: orderItems,
+      address: safeAddress,
       amount,
       paymentMethod: "COD",
       payment: false,
       date: Date.now(),
-    };
-
-    const newOrder = new orderModel(orderData);
-    await newOrder.save();
-
-    // Clear cart data
-    await userModel.findByIdAndUpdate(userId, { cartData: {} });
-
-    res.json({ success: true, message: "Order Placed" });
+    });
+    await userModel.findByIdAndUpdate(req.userId, { cartData: {} });
+    res.json({ success: true, message: "Order Placed", orderId: order._id });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    const clientError = error.message.startsWith("Invalid order") || error.message.startsWith("Invalid product");
+    res.status(clientError ? 400 : 500).json({
+      success: false,
+      message: clientError ? error.message : "Unable to place order",
+    });
   }
 };
 
-// Placing orders using PayPal Method
 const placeOrderPaypal = async (req, res) => {
+  let order;
   try {
-    const { userId, items, amount, address } = req.body;
-    const { origin } = req.headers;
-
-    // console.log("PayPal Request Body:", JSON.stringify(req.body, null, 2));
-
-    // Calculate item_total from items array
-    const itemTotal = items
-      .reduce((total, item) => {
-        const itemPrice = parseFloat(item.price) || 0;
-        const itemQuantity = parseInt(item.quantity) || 0;
-        const itemSubtotal = itemPrice * itemQuantity;
-        // console.log(
-        //   `Item: ${item.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemSubtotal}`
-        // );
-        return total + itemSubtotal;
-      }, 0)
-      .toFixed(2);
-
-    // console.log("Calculated Item Total:", itemTotal);
-    // console.log("Delivery Charge:", deliveryCharge);
-    // console.log(
-    //   "Total with Delivery:",
-    //   (parseFloat(itemTotal) + deliveryCharge).toFixed(2)
-    // );
-    // console.log("Frontend Amount:", amount);
-
-    // Validate frontend amount against item_total + deliveryCharge
-    const frontendAmount = parseFloat(amount).toFixed(2);
-    const expectedTotal = (parseFloat(itemTotal) + deliveryCharge).toFixed(2);
-    if (
-      Math.abs(parseFloat(frontendAmount) - parseFloat(expectedTotal)) > 0.01
-    ) {
-      console.warn(
-        "Amount mismatch: Frontend amount does not match calculated total with delivery"
-      );
-      return res.json({
-        success: false,
-        message: `Amount mismatch: Frontend amount (${frontendAmount}) does not match calculated total with delivery (${expectedTotal})`,
-      });
+    const { items, address } = req.body || {};
+    const origin = req.get("origin");
+    const safeAddress = normalizeAddress(address);
+    if (!safeAddress) {
+      return res.status(400).json({ success: false, message: "Invalid delivery address" });
     }
-
-    const orderData = {
-      userId,
-      items,
-      address,
-      amount: parseFloat(expectedTotal),
+    if (!origin || !allowedOrigins.has(origin)) {
+      return res.status(400).json({ success: false, message: "Unapproved checkout origin" });
+    }
+    if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+      return res.status(503).json({ success: false, message: "PayPal is not configured" });
+    }
+    const { orderItems, amount, subtotalCents } = await buildOrderItems(items);
+    order = await orderModel.create({
+      userId: req.userId,
+      items: orderItems,
+      address: safeAddress,
+      amount,
       paymentMethod: "PayPal",
       payment: false,
       date: Date.now(),
-    };
-
-    const newOrder = new orderModel(orderData);
-    await newOrder.save();
-
-    const request = new paypal.orders.OrdersCreateRequest();
-    request.prefer("return=representation");
-    request.requestBody({
-      intent: "CAPTURE",
-      purchase_units: [
-        {
-          amount: {
-            currency_code: currency,
-            value: expectedTotal,
-            breakdown: {
-              item_total: { currency_code: currency, value: itemTotal },
-              shipping: {
-                currency_code: currency,
-                value: deliveryCharge.toFixed(2),
-              },
-            },
-          },
-          items: items.map((item) => ({
-            name: item.name || "Unknown Item",
-            unit_amount: {
-              currency_code: currency,
-              value: parseFloat(item.price).toFixed(2),
-            },
-            quantity: item.quantity.toString(),
-          })),
-        },
-      ],
-      application_context: {
-        return_url: `${origin}/verify?success=true&orderId=${newOrder._id}`, // Remove {orderID} placeholder
-        cancel_url: `${origin}/verify?success=false&orderId=${newOrder._id}`,
-      },
     });
 
-    // console.log("PayPal API Request:", JSON.stringify(request.body, null, 2));
-
-    const response = await paypalClient.execute(request);
-    const approvalUrl = response.result.links.find(
-      (link) => link.rel === "approve"
-    ).href;
-    const paypalOrderId = response.result.id; // Capture the PayPal order ID
-
-    // Return the paypalOrderId to the frontend for verification
-    res.json({ success: true, session_url: approvalUrl, paypalOrderId });
+    const response = await paypalOrders.createOrder({
+      body: {
+        intent: "CAPTURE",
+        purchaseUnits: [{
+          referenceId: order._id.toString(),
+          amount: {
+            currencyCode: currency,
+            value: amount.toFixed(2),
+            breakdown: {
+              itemTotal: { currencyCode: currency, value: (subtotalCents / 100).toFixed(2) },
+              shipping: { currencyCode: currency, value: deliveryCharge.toFixed(2) },
+            },
+          },
+          items: orderItems.map((item) => ({
+            name: item.name.slice(0, 127),
+            unitAmount: { currencyCode: currency, value: item.price.toFixed(2) },
+            quantity: item.quantity.toString(),
+          })),
+        }],
+        paymentSource: {
+          paypal: {
+            experienceContext: {
+              returnUrl: `${origin}/verify?success=true&orderId=${order._id}`,
+              cancelUrl: `${origin}/verify?success=false&orderId=${order._id}`,
+              userAction: PaypalExperienceUserAction.PayNow,
+            },
+          },
+        },
+      },
+      prefer: "return=representation",
+      paypalRequestId: order._id.toString(),
+    });
+    const paypalOrder = response.result;
+    const approvalUrl = paypalOrder.links?.find(
+      (link) => link.rel === "approve" || link.rel === "payer-action"
+    )?.href;
+    if (!approvalUrl || !paypalOrder.id) throw new Error("PayPal did not return an approval link");
+    order.paypalOrderId = paypalOrder.id;
+    await order.save();
+    res.json({ success: true, session_url: approvalUrl, paypalOrderId: paypalOrder.id });
   } catch (error) {
-    console.error(
-      "PayPal Error:",
-      error.response ? error.response.data : error
-    );
-    res.json({ success: false, message: error.message });
+    if (order) await orderModel.findByIdAndDelete(order._id).catch(() => {});
+    const clientError = error.message.startsWith("Invalid order") || error.message.startsWith("Invalid product");
+    res.status(clientError ? 400 : 502).json({
+      success: false,
+      message: clientError ? error.message : "Unable to start PayPal checkout",
+    });
   }
 };
 
-// Verify PayPal payment
 const verifyPaypal = async (req, res) => {
-  const { orderId, success, paypal_order_id } = req.body;
+  const { orderId, success } = req.body || {};
+  const paypalOrderId = req.body?.paypal_order_id;
+  if (success !== "true") return res.json({ success: false });
+  if (!mongoose.Types.ObjectId.isValid(orderId) || typeof paypalOrderId !== "string") {
+    return res.status(400).json({ success: false, message: "Invalid payment details" });
+  }
 
   try {
-    // console.log("Verify PayPal Request:", {
-    //   orderId,
-    //   success,
-    //   paypal_order_id,
-    // });
-
-    if (success === "true") {
-      const request = new paypal.orders.OrdersCaptureRequest(paypal_order_id);
-      const response = await paypalClient.execute(request);
-
-      // console.log(
-      //   "PayPal Capture Response:",
-      //   JSON.stringify(response.result, null, 2)
-      // );
-
-      if (response.result.status === "COMPLETED") {
-        await orderModel.findByIdAndUpdate(orderId, { payment: true });
-        await userModel.findByIdAndUpdate(req.body.userId, { cartData: {} });
-        res.json({ success: true });
-      } else {
-        await orderModel.findByIdAndDelete(orderId);
-        res.json({ success: false, message: "Payment not completed" });
-      }
-    } else {
-      await orderModel.findByIdAndDelete(orderId);
-      res.json({ success: false });
+    const order = await orderModel.findOne({ _id: orderId, userId: req.userId }).select("+paypalOrderId");
+    if (!order || order.paymentMethod !== "PayPal" || order.paypalOrderId !== paypalOrderId) {
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
-  } catch (error) {
-    console.error(
-      "PayPal Verify Error:",
-      error.response ? error.response.data : error
+    if (order.payment) return res.json({ success: true });
+
+    const response = await paypalOrders.captureOrder({
+      id: paypalOrderId,
+      paypalRequestId: `${order._id}-capture`,
+      prefer: "return=representation",
+    });
+    const paypalOrder = response.result;
+    const capture = paypalOrder.purchaseUnits?.[0]?.payments?.captures?.[0];
+    if (
+      paypalOrder.status !== "COMPLETED" ||
+      paypalOrder.id !== order.paypalOrderId ||
+      capture?.status !== "COMPLETED" ||
+      capture?.amount?.currencyCode !== currency ||
+      capture?.amount?.value !== order.amount.toFixed(2)
+    ) {
+      return res.status(400).json({ success: false, message: "Payment could not be verified" });
+    }
+
+    const updatedOrder = await orderModel.findOneAndUpdate(
+      { _id: order._id, userId: req.userId, payment: false },
+      { payment: true },
+      { new: true }
     );
-    res.json({ success: false, message: error.message });
+    if (!updatedOrder) return res.status(409).json({ success: false, message: "Order was already processed" });
+    await userModel.findByIdAndUpdate(req.userId, { cartData: {} });
+    res.json({ success: true });
+  } catch {
+    const alreadyPaid = await orderModel
+      .findOne({ _id: orderId, userId: req.userId, payment: true })
+      .select("+paypalOrderId")
+      .lean()
+      .catch(() => null);
+    if (alreadyPaid?.paypalOrderId === paypalOrderId) return res.json({ success: true });
+    res.status(502).json({ success: false, message: "Unable to verify PayPal payment" });
   }
 };
 
-// // Placing orders using Stripe Method
-// const placeOrderStripe = async (req, res) => { ... };
-// // Verify Stripe
-// const verifyStripe = async (req, res) => { ... };
-// // Placing orders using Razorpay Method
-// const placeOrderRazorpay = async (req, res) => { ... };
-// // Verify Razorpay
-// const verifyRazorpay = async (req, res) => { ... };
-
-// All Orders data for Admin Panel
-const allOrders = async (req, res) => {
+const allOrders = async (_req, res) => {
   try {
-    const orders = await orderModel.find({});
+    const orders = await orderModel.find({}).sort({ date: -1 }).lean();
     res.json({ success: true, orders });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+  } catch {
+    res.status(500).json({ success: false, message: "Unable to list orders" });
   }
 };
 
-// User Order Data for Frontend
 const userOrders = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    const orders = await orderModel.find({ userId });
-    res.json({ success: true, orders });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    const page = Number.isInteger(req.body?.page) ? Math.max(0, Math.min(req.body.page, 1000)) : 0;
+    const rows = await orderModel.find({ userId: req.userId })
+      .sort({ date: -1, _id: -1 })
+      .skip(page * 21)
+      .limit(21)
+      .lean();
+    res.json({ success: true, orders: rows.slice(0, 20), hasMore: rows.length > 20 });
+  } catch {
+    res.status(500).json({ success: false, message: "Unable to list orders" });
   }
 };
 
-// Update order status from Admin Panel
 const updateStatus = async (req, res) => {
+  const { orderId, status } = req.body || {};
+  const validStatuses = ["Order Placed", "Packing", "Shipped", "Out for delivery", "Delivered"];
+  if (!mongoose.Types.ObjectId.isValid(orderId) || !validStatuses.includes(status)) {
+    return res.status(400).json({ success: false, message: "Invalid order status" });
+  }
   try {
-    const { orderId, status } = req.body;
-    await orderModel.findByIdAndUpdate(orderId, { status });
+    const order = await orderModel.findByIdAndUpdate(orderId, { status }, { new: true });
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
     res.json({ success: true, message: "Status Updated" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+  } catch {
+    res.status(500).json({ success: false, message: "Unable to update order" });
   }
 };
 
-export {
-  // verifyRazorpay,
-  // verifyStripe,
-  verifyPaypal,
-  placeOrder,
-  // placeOrderStripe,
-  placeOrderPaypal,
-  // placeOrderRazorpay,
-  allOrders,
-  userOrders,
-  updateStatus,
-};
+export { verifyPaypal, placeOrder, placeOrderPaypal, allOrders, userOrders, updateStatus };

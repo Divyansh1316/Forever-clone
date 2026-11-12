@@ -1,150 +1,46 @@
-# 🛒 Forever Clone - Full Stack E-Commerce Platform
+# Forever Store
 
-A modern full-stack e-commerce web application featuring a responsive storefront, secure checkout, and a comprehensive admin dashboard for managing products and orders.
+Forever Store has three separately managed npm applications:
 
-## 🚀 Live Demo
+- `backend`: Express API, MongoDB, Cloudinary uploads, and PayPal checkout.
+- `frontend`: customer storefront built with React and Vite.
+- `admin`: product and order dashboard built with React and Vite.
 
-**Frontend:** https://forever-clone-frontend.onrender.com/
+Use Node.js 24 LTS for local development and deployment. The root `.nvmrc` pins the verified local patch (24.22.3); each app's `engines.node` and the Vercel runtime target Node.js 24.x so deployment can receive current patch updates.
 
----
+## Local development
 
-## ✨ Features
+Install dependencies with `npm ci` from each app directory. Start each app in a separate terminal with `npm run server` in `backend` and `npm run dev` in `frontend` and `admin`.
 
-### 👤 Customer Features
+The API listens on port 4000, the storefront on 5173, and the admin app on 5174. Run `npm run build` and `npm run lint` in either frontend app to validate its production build and lint rules.
 
-* Browse products with a responsive and intuitive UI
-* Dynamic product catalog with:
+## Environment configuration
 
-  * Category filtering
-  * Sorting options
-  * Product search
-* Add products to cart
-* Update cart quantities
-* Secure checkout
-* PayPal payment integration
-* Cash on Delivery (COD) payment option
-* Order placement and tracking
+Keep `.env` files local and configure the same variables in the deployment platform's secret settings. Never put secret values in frontend `VITE_` variables; Vite embeds those values in public browser assets.
 
-### 🛠️ Admin Dashboard
+Backend variables:
 
-* Admin authentication
-* Add new products with image uploads
-* Update inventory
-* Delete products
-* Manage customer orders
-* Monitor order status
+- `JWT_SECRET`: random secret of at least 32 characters. For local development, create one in a terminal with `node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"` and add it to `backend/.env` as `JWT_SECRET=<generated value>`. Keep the value private and do not commit it. If `backend/.env` already exists, add only the missing setting instead of replacing the file.
+- `MONGODB_URI`: standard MongoDB connection URI, including any query options supplied by your provider; the API selects the `e-commerce` database separately.
+- `CLOUDINARY_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_SECRET_KEY`: Cloudinary account settings.
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`: admin login credentials.
+- `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`: PayPal application credentials.
+- `PAYPAL_MODE`: optional `live` to select PayPal production; defaults to Sandbox.
+- `CORS_ORIGINS`: comma-separated exact origins for the deployed storefront and admin app, including scheme and host (no path). Local Vite origins are allowed outside production.
+- `PORT`: optional local API port; defaults to 4000.
 
----
+Frontend variables:
 
-## 🏗️ Tech Stack
+- `VITE_BACKEND_URL`: public base URL of the deployed API, without a trailing slash.
 
-### Frontend
+To check whether the effective local value is long enough without displaying it, run this from `backend`: `node --input-type=module -e "import 'dotenv/config'; console.log(process.env.JWT_SECRET?.length >= 32 ? 'JWT_SECRET is valid' : 'JWT_SECRET is missing or too short')"`. A shell-level `JWT_SECRET` takes precedence over the value in `.env`.
 
-* React.js
-* React Router
-* Axios
-* Context API
+Set deployment variables separately for each Vercel project. The backend's `vercel.json` serves the Express API; the `frontend` and `admin` directories deploy as static Vite apps with SPA rewrites.
 
-### Backend
+## Security and operational notes
 
-* Node.js
-* Express.js
-* MongoDB
-* Mongoose
-* JWT Authentication
+Admin and user tokens expire after eight hours and seven days, respectively. Changing `JWT_SECRET` invalidates existing tokens. Product uploads accept JPEG, PNG, and WebP images up to 2 MB each. Public product responses use a short cache lifetime.
 
-### Payments
+On deployment, existing sessions must sign in again because older tokens did not carry the new role and expiry claims. Finish or allow any PayPal checkouts already in progress to expire before deploying; those older pending orders did not store the PayPal order ID needed for secure verification.
 
-* PayPal
-* Cash on Delivery (COD)
-
----
-
-## 📂 Project Structure
-
-```text
-Forever-Clone/
-│
-├── frontend/          # React frontend
-├── backend/           # Express API
-├── admin/             # Admin dashboard
-└── README.md
-```
-
----
-
-## ⚙️ Installation
-
-### Clone the repository
-
-```bash
-git clone https://github.com/your-username/forever-clone.git
-cd forever-clone
-```
-
-### Install dependencies
-
-#### Frontend
-
-```bash
-cd frontend
-npm install
-```
-
-#### Backend
-
-```bash
-cd backend
-npm install
-```
-
-#### Admin
-
-```bash
-cd admin
-npm install
-```
-
----
-
-## ▶️ Run the Project
-
-### Start Backend
-
-```bash
-npm run server
-```
-
-### Start Frontend
-
-```bash
-npm run dev
-```
-
-### Start Admin Dashboard
-
-```bash
-npm run dev
-```
-
-## 🔮 Future Improvements
-
-* Wishlist functionality
-* Product reviews and ratings
-* Coupon and discount system
-* Email notifications
-* User profile management
-* Sales analytics dashboard
-* Stripe payment integration
-
----
-
-## 📚 What I Learned
-
-* Building scalable REST APIs using Express.js
-* State management in React
-* MongoDB data modeling
-* Payment gateway integration with PayPal
-* Authentication and authorization using JWT
-* CRUD operations for admin management
-* Full-stack deployment
+Payment totals and product prices are calculated from the product catalog on the server. PayPal completion is confirmed through the PayPal API and matched to the authenticated user's pending order. Configure and verify live PayPal credentials before accepting live payments.
