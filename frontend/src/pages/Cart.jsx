@@ -1,31 +1,23 @@
-import React, { useContext, useEffect, useState } from "react";
-import { ShopContext } from "../context/ShopContext";
+import React, { useContext, useMemo } from "react";
+import { ShopContext } from "../context/ShopContext.js";
 import Title from "../components/Title";
 import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
 
 const Cart = () => {
-  const { products, currency, cartItems, updateQuantity, navigate } =
+  const { products, currency, cartItems, updateQuantity, navigate, token } =
     useContext(ShopContext);
 
-  const [cartData, setCartData] = useState([]);
-
-  useEffect(() => {
-    if (products.length > 0) {
-      const tempData = [];
-      for (const items in cartItems) {
-        for (const item in cartItems[items]) {
-          if (cartItems[items][item] > 0) {
-            tempData.push({
-              _id: items,
-              size: item,
-              quantity: cartItems[items][item],
-            });
-          }
+  const cartData = useMemo(() => {
+    const items = [];
+    for (const productId in cartItems) {
+      for (const size in cartItems[productId]) {
+        if (cartItems[productId][size] > 0) {
+          items.push({ _id: productId, size, quantity: cartItems[productId][size] });
         }
       }
-      setCartData(tempData);
     }
+    return items.filter((item) => products.some((product) => product._id === item._id));
   }, [cartItems, products]);
 
   return (
@@ -39,6 +31,7 @@ const Cart = () => {
           const productData = products.find(
             (product) => product._id === item._id
           );
+          if (!productData) return null;
 
           return (
             <div
@@ -60,7 +53,7 @@ const Cart = () => {
                       {currency}
                       {productData.price}
                     </p>
-                    <p className="px-2 sm:px-3 sm:py-1 border bg-slate-50">
+                    <p className="px-2 sm:px-3 sm:py-1 border bg-slate-50 dark:border-zinc-600 dark:bg-zinc-700">
                       {item.size}
                     </p>
                   </div>
@@ -76,14 +69,14 @@ const Cart = () => {
                         Number(e.target.value)
                       )
                 }
-                className="border max-w-10 sm:max-w-20 px-1 sm:px-2 py-1"
+                className="max-w-10 border px-1 py-1 sm:max-w-20 sm:px-2 dark:border-zinc-600 dark:bg-zinc-800"
                 type="number"
                 min={1}
                 defaultValue={item.quantity}
               />
               <img
                 onClick={() => updateQuantity(item._id, item.size, 0)}
-                className="w-4 mr-4 sm:w-5 cursor-pointer"
+                className="mr-4 w-4 cursor-pointer dark:brightness-0 dark:invert sm:w-5"
                 src={assets.bin_icon}
                 alt=""
               />
@@ -97,8 +90,8 @@ const Cart = () => {
           <CartTotal />
           <div className="w-full text-end">
             <button
-              onClick={() => navigate("/place-order")}
-              className="bg-black text-white text-sm my-8 px-8 py-3"
+              onClick={() => navigate(token ? "/place-order" : "/login")}
+              className="my-8 bg-black px-8 py-3 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
             >
               PROCEED TO CHECKOUT
             </button>

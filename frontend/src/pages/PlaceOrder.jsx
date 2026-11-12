@@ -2,7 +2,7 @@ import React, { useContext, useState } from "react";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
 import { assets } from "../assets/assets";
-import { ShopContext } from "../context/ShopContext";
+import { ShopContext } from "../context/ShopContext.js";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -14,7 +14,6 @@ const PlaceOrder = () => {
     token,
     cartItems,
     setCartItems,
-    getCartAmount,
     delivery_fee,
     products,
   } = useContext(ShopContext);
@@ -30,8 +29,6 @@ const PlaceOrder = () => {
     country: "",
     phone: "",
   });
-
-  const [paypalOrderId, setPaypalOrderId] = useState(null);
 
   const onChangeHandler = (event) => {
     const name = event.target.name;
@@ -82,6 +79,7 @@ const PlaceOrder = () => {
 
       switch (method) {
         case "cod":
+          {
           const response = await axios.post(
             backendUrl + "/api/order/place",
             orderData,
@@ -95,8 +93,10 @@ const PlaceOrder = () => {
             toast.error(response.data.message);
           }
           break;
+          }
 
         case "paypal":
+          {
           const responsePaypal = await axios.post(
             backendUrl + "/api/order/paypal",
             orderData,
@@ -105,7 +105,6 @@ const PlaceOrder = () => {
           if (responsePaypal.data.success) {
             const { session_url, paypalOrderId: receivedPaypalOrderId } =
               responsePaypal.data;
-            setPaypalOrderId(receivedPaypalOrderId);
             localStorage.setItem("paypalOrderId", receivedPaypalOrderId); // Store before redirect
             window.location.replace(session_url); // Trigger PayPal flow
           } else {
@@ -114,6 +113,7 @@ const PlaceOrder = () => {
             );
           }
           break;
+          }
 
         default:
           break;
@@ -140,7 +140,7 @@ const PlaceOrder = () => {
             onChange={onChangeHandler}
             name="firstName"
             value={formData.firstName}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
             type="text"
             placeholder="First name"
           />
@@ -149,7 +149,7 @@ const PlaceOrder = () => {
             onChange={onChangeHandler}
             name="lastName"
             value={formData.lastName}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
             type="text"
             placeholder="Last name"
           />
@@ -159,7 +159,7 @@ const PlaceOrder = () => {
           onChange={onChangeHandler}
           name="email"
           value={formData.email}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
           type="email"
           placeholder="Email address"
         />
@@ -168,7 +168,7 @@ const PlaceOrder = () => {
           onChange={onChangeHandler}
           name="street"
           value={formData.street}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
           type="text"
           placeholder="Street"
         />
@@ -178,7 +178,7 @@ const PlaceOrder = () => {
             onChange={onChangeHandler}
             name="city"
             value={formData.city}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
             type="text"
             placeholder="City"
           />
@@ -187,7 +187,7 @@ const PlaceOrder = () => {
             onChange={onChangeHandler}
             name="state"
             value={formData.state}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
             type="text"
             placeholder="State"
           />
@@ -198,7 +198,7 @@ const PlaceOrder = () => {
             onChange={onChangeHandler}
             name="zipcode"
             value={formData.zipcode}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
             type="number"
             placeholder="Zipcode"
           />
@@ -207,7 +207,7 @@ const PlaceOrder = () => {
             onChange={onChangeHandler}
             name="country"
             value={formData.country}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
             type="text"
             placeholder="Country"
           />
@@ -217,7 +217,7 @@ const PlaceOrder = () => {
           onChange={onChangeHandler}
           name="phone"
           value={formData.phone}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          className="w-full rounded border border-gray-300 bg-white px-3.5 py-1.5 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
           type="number"
           placeholder="Phone"
         />
@@ -262,7 +262,7 @@ const PlaceOrder = () => {
           <div className="w-full text-end mt-8">
             <button
               type="submit"
-              className="bg-black text-white px-16 py-3 text-sm"
+              className="bg-black px-16 py-3 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
             >
               PLACE ORDER
             </button>

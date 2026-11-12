@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     cartData: { type: Object, default: {} },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "product" }],
   },
   { minimize: false } //this prevents Mongoose from automatically removing empty objects (cartData) from documents.
 );

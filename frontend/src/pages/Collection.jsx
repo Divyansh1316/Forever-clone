@@ -1,13 +1,12 @@
-import React, { useContext, useEffect, useState } from "react";
-import { ShopContext } from "../context/ShopContext";
+import React, { useContext, useMemo, useState } from "react";
+import { ShopContext } from "../context/ShopContext.js";
 import { assets } from "../assets/assets";
 import Title from "../components/Title";
 import ProductItem from "../components/ProductItem";
 
 const Collection = () => {
-  const { products, search, showSearch } = useContext(ShopContext);
+  const { products, productsLoading, search } = useContext(ShopContext);
   const [showFilter, setShowFilter] = useState(false);
-  const [filterProducts, setFilterProducts] = useState([]);
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
   const [sortType, setSortType] = useState("relevance");
@@ -34,55 +33,23 @@ const Collection = () => {
     setSortType("relevance"); //self logic for filter and sort to work together
   };
 
-  const applyFilter = () => {
-    let productsCopy = products.slice();
+  const filterProducts = useMemo(() => {
+    const searchTerm = search.trim().toLocaleLowerCase();
+    let filtered = products.filter((item) => {
+      const searchableText = [item.name, item.description, item.category, item.subCategory]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase();
+      const matchesSearch = !searchTerm || searchableText.includes(searchTerm);
+      const matchesCategory = category.length === 0 || category.includes(item.category);
+      const matchesSubCategory = subCategory.length === 0 || subCategory.includes(item.subCategory);
+      return matchesSearch && matchesCategory && matchesSubCategory;
+    });
 
-    if (showSearch && search) {
-      productsCopy = productsCopy.filter((item) =>
-        item.name.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    if (category.length > 0) {
-      productsCopy = productsCopy.filter((item) =>
-        category.includes(item.category)
-      );
-    }
-
-    if (subCategory.length > 0) {
-      productsCopy = productsCopy.filter((item) =>
-        subCategory.includes(item.subCategory)
-      );
-    }
-
-    setFilterProducts(productsCopy);
-  };
-
-  const sortProduct = () => {
-    let fpCopy = filterProducts.slice();
-
-    switch (sortType) {
-      case "low-high":
-        setFilterProducts(fpCopy.sort((a, b) => a.price - b.price));
-        break;
-
-      case "high-low":
-        setFilterProducts(fpCopy.sort((a, b) => b.price - a.price));
-        break;
-
-      default:
-        applyFilter();
-        break;
-    }
-  };
-
-  useEffect(() => {
-    applyFilter();
-  }, [category, subCategory, search, showSearch, products]);
-
-  useEffect(() => {
-    sortProduct();
-  }, [sortType]);
+    if (sortType === "low-high") filtered = filtered.slice().sort((a, b) => a.price - b.price);
+    if (sortType === "high-low") filtered = filtered.slice().sort((a, b) => b.price - a.price);
+    return filtered;
+  }, [products, search, category, subCategory, sortType]);
 
   return (
     <div className="flex flex-col sm:flex-row gap-1 sm:gap-10 pt-10 border-t">
@@ -194,6 +161,8 @@ const Collection = () => {
 
         {/* Map Products */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
+          {productsLoading && Array.from({ length: 8 }, (_, index) => <div key={index} className="aspect-[3/4] animate-pulse bg-gray-100 dark:bg-zinc-700" />)}
+          {!productsLoading && filterProducts.length === 0 && <p className="col-span-full py-10 text-center text-gray-500">{search.trim() ? `No products found for “${search.trim()}”.` : "No products match these filters."}</p>}
           {filterProducts.map((item, index) => (
             <ProductItem
               key={index}

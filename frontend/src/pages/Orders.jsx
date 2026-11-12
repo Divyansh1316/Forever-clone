@@ -1,44 +1,47 @@
 import React, { useContext, useEffect, useState } from "react";
-import { ShopContext } from "../context/ShopContext";
+import { ShopContext } from "../context/ShopContext.js";
 import Title from "../components/Title";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 const Orders = () => {
   const { backendUrl, token, currency } = useContext(ShopContext);
 
   const [orderData, setOrderData] = useState([]);
-
-  const loadOrderData = async () => {
-    try {
-      if (!token) {
-        return null;
-      }
-
-      const response = await axios.post(
-        backendUrl + "/api/order/userorders",
-        {},
-        { headers: { token } }
-      );
-
-      if (response.data.success) {
-        let allOrdersItem = [];
-        response.data.orders.map((order) => {
-          order.items.map((item) => {
-            item["status"] = order.status;
-            item["payment"] = order.payment;
-            item["paymentMethod"] = order.paymentMethod;
-            item["date"] = order.date;
-            allOrdersItem.push(item);
-          });
-        });
-        setOrderData(allOrdersItem.reverse());
-      }
-    } catch (error) {}
-  };
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(Boolean(token));
 
   useEffect(() => {
-    loadOrderData();
-  }, [token]);
+    if (!token) return;
+    let cancelled = false;
+    axios
+      .post(
+        backendUrl + "/api/order/userorders",
+        { page },
+        { headers: { token } }
+      )
+      .then((response) => {
+        if (cancelled || !response.data.success) return;
+        const items = response.data.orders.flatMap((order) =>
+          order.items.map((item) => ({
+            ...item,
+            status: order.status,
+            payment: order.payment,
+            paymentMethod: order.paymentMethod,
+            date: order.date,
+          }))
+        );
+        setOrderData((current) => page === 0 ? items : [...current, ...items]);
+        setHasMore(response.data.hasMore);
+      })
+      .catch((error) => toast.error(error.message))
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backendUrl, token, page]);
 
   return (
     <div className="border-t pt-16">
@@ -81,16 +84,13 @@ const Orders = () => {
                 <p className="min-w-2 h-2 rounded-full bg-green-500"></p>
                 <p className="text-sm md:text-base">{item.status}</p>
               </div>
-              <button
-                onClick={loadOrderData}
-                className="border px-4 py-2 text-sm font-medium rounded-sm"
-              >
-                Track Order
-              </button>
             </div>
           </div>
         ))}
       </div>
+      {loading && orderData.length === 0 && <p className="py-8 text-gray-500">Loading your orders…</p>}
+      {!loading && orderData.length === 0 && <p className="py-8 text-gray-500">No orders yet.</p>}
+      {hasMore && <button onClick={() => { setLoading(true); setPage((current) => current + 1); }} disabled={loading} className="my-6 border px-5 py-2">{loading ? "Loading..." : "Load more orders"}</button>}
     </div>
   );
 };

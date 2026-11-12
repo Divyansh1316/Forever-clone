@@ -1,63 +1,63 @@
+import mongoose from "mongoose";
 import userModel from "../models/userModel.js";
+import productModel from "../models/productModel.js";
 
-// add products to user cart
+const validItem = (itemId, size) =>
+  mongoose.Types.ObjectId.isValid(itemId) &&
+  typeof size === "string" && /^[\w-]{1,30}$/.test(size);
+
+const confirmProductSize = async (itemId, size) => {
+  const product = await productModel.findById(itemId).select("sizes").lean();
+  return Boolean(product?.sizes.includes(size));
+};
+
 const addToCart = async (req, res) => {
+  const { itemId, size } = req.body || {};
+  if (!validItem(itemId, size)) return res.status(400).json({ success: false, message: "Invalid cart item" });
   try {
-    const { userId, itemId, size } = req.body;
-
-    const userData = await userModel.findById(userId);
-    let cartData = await userData.cartData;
-
-    if (cartData[itemId]) {
-      if (cartData[itemId][size]) {
-        cartData[itemId][size] += 1;
-      } else {
-        cartData[itemId][size] = 1;
-      }
-    } else {
-      cartData[itemId] = {};
-      cartData[itemId][size] = 1;
+    if (!(await confirmProductSize(itemId, size))) {
+      return res.status(400).json({ success: false, message: "Invalid cart item" });
     }
-
-    await userModel.findByIdAndUpdate(userId, { cartData });
-
+    const path = `cartData.${itemId}.${size}`;
+    const result = await userModel.updateOne(
+      { _id: req.userId, $or: [{ [path]: { $exists: false } }, { [path]: { $lt: 99 } }] },
+      { $inc: { [path]: 1 } }
+    );
+    if (!result.matchedCount) return res.status(400).json({ success: false, message: "Cart quantity limit reached" });
     res.json({ success: true, message: "Added to Cart" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+  } catch {
+    res.status(500).json({ success: false, message: "Unable to update cart" });
   }
 };
 
-// update user cart
 const updateCart = async (req, res) => {
+  const { itemId, size, quantity } = req.body || {};
+  if (!validItem(itemId, size) || !Number.isInteger(quantity) || quantity < 0 || quantity > 99) {
+    return res.status(400).json({ success: false, message: "Invalid cart item" });
+  }
   try {
-    const { userId, itemId, size, quantity } = req.body;
-
-    const userData = await userModel.findById(userId);
-    let cartData = await userData.cartData;
-
-    cartData[itemId][size] = quantity;
-
-    await userModel.findByIdAndUpdate(userId, { cartData });
+    if (!(await confirmProductSize(itemId, size))) {
+      return res.status(400).json({ success: false, message: "Invalid cart item" });
+    }
+    const path = `cartData.${itemId}.${size}`;
+    const result = await userModel.updateOne(
+      { _id: req.userId },
+      quantity === 0 ? { $unset: { [path]: 1 } } : { $set: { [path]: quantity } }
+    );
+    if (!result.matchedCount) return res.status(404).json({ success: false, message: "User not found" });
     res.json({ success: true, message: "Cart Updated" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+  } catch {
+    res.status(500).json({ success: false, message: "Unable to update cart" });
   }
 };
 
-// get user cart data
 const getUserCart = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    const userData = await userModel.findById(userId);
-    let cartData = await userData.cartData;
-
-    res.json({ success: true, cartData });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    const user = await userModel.findById(req.userId).select("cartData").lean();
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    res.json({ success: true, cartData: user.cartData || {} });
+  } catch {
+    res.status(500).json({ success: false, message: "Unable to load cart" });
   }
 };
 
