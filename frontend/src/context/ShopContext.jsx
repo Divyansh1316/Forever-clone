@@ -22,6 +22,22 @@ const saveGuestCart = (cart) => {
   }
 };
 
+const readCachedProducts = () => {
+  try {
+    const savedProducts = localStorage.getItem("store-products") || sessionStorage.getItem("store-products");
+    const parsedProducts = JSON.parse(savedProducts || "[]");
+    return Array.isArray(parsedProducts) ? parsedProducts : [];
+  } catch {
+    return [];
+  }
+};
+
+const cacheProducts = (products) => {
+  const serializedProducts = JSON.stringify(products);
+  try { localStorage.setItem("store-products", serializedProducts); } catch { /* Persistent storage may be unavailable or full. */ }
+  try { sessionStorage.setItem("store-products", serializedProducts); } catch { /* Session storage may be unavailable or full. */ }
+};
+
 const ShopContextProvider = (props) => {
   const currency = "$";
   const delivery_fee = 10;
@@ -29,12 +45,8 @@ const ShopContextProvider = (props) => {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [cartItems, setCartItems] = useState(readGuestCart);
-  const [products, setProducts] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem("store-products") || "[]"); } catch { return []; }
-  });
-  const [productsLoading, setProductsLoading] = useState(() => {
-    try { return !JSON.parse(sessionStorage.getItem("store-products") || "[]").length; } catch { return true; }
-  });
+  const [products, setProducts] = useState(readCachedProducts);
+  const [productsLoading, setProductsLoading] = useState(() => readCachedProducts().length === 0);
   const [token, setToken] = useState(() => localStorage.getItem("token") || "");
   const [favoriteItems, setFavoriteItems] = useState([]);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "system");
@@ -138,7 +150,7 @@ const ShopContextProvider = (props) => {
       .then((response) => {
         if (response.data.success) {
           setProducts(response.data.products);
-          try { sessionStorage.setItem("store-products", JSON.stringify(response.data.products)); } catch { /* Storage can be unavailable or full. */ }
+          cacheProducts(response.data.products);
         }
         else toast.error(response.data.message);
       })

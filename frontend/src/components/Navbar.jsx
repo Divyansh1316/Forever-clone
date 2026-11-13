@@ -44,6 +44,20 @@ const Navbar = () => {
     };
   }, [profileVisible]);
 
+  useEffect(() => {
+    if (!visible) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setVisible(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [visible]);
+
   return (
     <div className="flex items-center justify-between py-5 font-medium">
       <Link to="/">
@@ -115,29 +129,36 @@ const Navbar = () => {
             {getCartCount()}
           </p>
         </Link>
-        <img
+        <button
+          type="button"
           onClick={() => setVisible(true)}
-          src={assets.menu_icon}
-          className="w-5 cursor-pointer sm:hidden dark:brightness-0 dark:invert"
-          alt=""
-        />
+          className="sm:hidden"
+          aria-label="Open navigation menu"
+          aria-expanded={visible}
+          aria-controls="mobile-navigation"
+        >
+          <img src={assets.menu_icon} className="w-5 dark:brightness-0 dark:invert" alt="" />
+        </button>
       </div>
 
       {/* Sidebar menu for small screens */}
 
       <div
-        className={`absolute top-0 right-0 bottom-0 overflow-hidden bg-white transition-all ${
-          visible ? "w-full" : "w-0"
+        id="mobile-navigation"
+        aria-hidden={!visible}
+        className={`fixed inset-0 z-[100] overflow-y-auto bg-white text-gray-700 shadow-xl transition-transform duration-300 dark:bg-zinc-900 dark:text-zinc-100 sm:hidden ${
+          visible ? "visible translate-x-0" : "invisible pointer-events-none translate-x-full"
         }`}
       >
-        <div className="flex flex-col text-gray-600">
-          <div
+        <nav className="flex min-h-full flex-col">
+          <button
+            type="button"
             onClick={() => setVisible(false)}
-            className="flex items-center gap-4 p-3 cursor-pointer"
+            className="flex items-center gap-4 border-b border-gray-200 p-4 text-left dark:border-zinc-700"
           >
-            <img src={assets.dropdown_icon} className="h-4 rotate-180" alt="" />
-            <p>Back</p>
-          </div>
+            <img src={assets.dropdown_icon} className="h-4 rotate-180 dark:brightness-0 dark:invert" alt="" />
+            <span>Back</span>
+          </button>
           <NavLink
             onClick={() => setVisible(false)}
             className="py-2 pl-6 border"
@@ -167,7 +188,7 @@ const Navbar = () => {
             <NavLink onClick={() => setVisible(false)} className="py-2 pl-6 border" to="/login">SIGN IN</NavLink>
             <NavLink onClick={() => setVisible(false)} className="py-2 pl-6 border" to="/signup">SIGN UP</NavLink>
           </>}
-        </div>
+        </nav>
       </div>
     </div>
   );
