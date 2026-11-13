@@ -58,6 +58,7 @@ body { background: white; color: #111827; transition: background-color .2s, colo
 .dark [class~="border-t"], .dark [class~="border-b"], .dark [class~="border-l"], .dark [class~="border-r"] { border-color: #3f3f46; }
 .dark .border-gray-300, .dark .border-gray-400, .dark .border-slate-300 { border-color: #52525b; }
 .dark .border-gray-800 { border-color: #71717a; }
+.dark .size-option-selected { border-color: #fb7185; background-color: #4c1d2b; color: #fff1f2; }
 .dark input, .dark select, .dark textarea { color: #f4f4f5; }
 .dark input::placeholder, .dark textarea::placeholder { color: #a1a1aa; opacity: 1; }
 .dark .Toastify__toast { background: #27272a; color: #f4f4f5; }
