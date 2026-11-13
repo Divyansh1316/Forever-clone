@@ -78,7 +78,7 @@ const Product = () => {
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{reviewCount ? `${averageRating.toFixed(1)} / 5 - ${reviewCount} ${reviewCount === 1 ? "review" : "reviews"}` : "No reviews yet"}</p>
         <p className="mt-5 text-3xl font-medium">{currency}{productData.price}</p>
         <p className="mt-5 text-gray-500 md:w-4/5">{productData.description}</p>
-        <div className="flex flex-col gap-4 my-8"><p>Select Size</p><div className="flex gap-2">{productData.sizes.map((item) => <button onClick={() => setSize(item)} className={`border py-2 px-4 bg-gray-100 dark:bg-zinc-700 ${item === size ? "border-orange-500" : ""}`} key={item}>{item}</button>)}</div></div>
+        <div className="flex flex-col gap-4 my-8"><p>Select Size</p><div className="flex gap-2">{productData.sizes.map((item) => <button type="button" aria-pressed={item === size} onClick={() => setSize(item)} className={`size-option rounded-sm border py-2 px-4 ${item === size ? "size-option-selected border-rose-500 bg-rose-50 text-rose-900" : "bg-gray-100 dark:bg-zinc-700"}`} key={item}>{item}</button>)}</div></div>
         <button onClick={() => addToCart(productData._id, size)} className="bg-black px-8 py-3 text-sm text-white active:bg-gray-700 dark:bg-zinc-100 dark:text-zinc-900">ADD TO CART</button>
         <button type="button" onClick={() => toggleFavorite(productData._id)} className="ml-3 border px-5 py-3 text-sm dark:border-[#18181b]" aria-pressed={isFavorite}>{isFavorite ? "Saved to favorites" : "Add to favorites"}</button>
         <hr className="mt-8 sm:w-4/5" />
