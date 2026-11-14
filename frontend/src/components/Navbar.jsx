@@ -26,7 +26,7 @@ const Navbar = () => {
     setToken("");
     setCartItems({});
     setFavoriteItems([]);
-    navigate("/");
+    navigate("/", { state: { transition: "logout" } });
   };
 
   useEffect(() => {

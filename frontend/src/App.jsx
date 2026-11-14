@@ -35,8 +35,10 @@ const NotFound = () => (
 
 const App = () => {
   const { theme } = useContext(ShopContext);
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const pageTransitionKey = `${pathname}:${location.state?.transition || ""}`;
   const toastTheme = theme === "system" ? "auto" : theme;
   return (
     <div className={`site-shell px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw] ${isAuthPage ? "auth-site" : ""}`}>
@@ -44,7 +46,7 @@ const App = () => {
       <ScrollToTop />
       <Navbar />
       <SearchBar />
-      <div key={pathname} className="page-enter">
+      <div key={pageTransitionKey} className="page-enter">
       <Routes>
         <Route path="/" element={<Home />}></Route>
         <Route path="/collection" element={<Collection />}></Route>
