@@ -102,8 +102,7 @@ const Login = ({ initialState = "Login" }) => {
           {showPassword ? "Hide" : "Show"}
         </button>
       </div>
-      <div className="w-full flex justify-between text-sm mt-[-8px]">
-        <p className="cursor-pointer">Forgot your password?</p>
+      <div className="mt-[-8px] flex w-full justify-end text-sm">
         {currentState === "Login" ? (
           <p
             onClick={() => setCurrentState("Sign Up")}

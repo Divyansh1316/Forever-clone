@@ -17,6 +17,7 @@ Forever Store is a full-stack clothing shop with a customer storefront, an admin
 
 - Sign in to the admin dashboard to add products, upload product images, remove listings, and review customer orders.
 - Update order status as it moves through packing, shipping, delivery, and completion.
+- Switch between saved light and dark themes, and reveal the password while signing in.
 
 ## Technology
 

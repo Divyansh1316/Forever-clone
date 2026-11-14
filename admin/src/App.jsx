@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Add from "./pages/Add";
 import List from "./pages/List";
 import Orders from "./pages/Orders";
@@ -9,6 +9,7 @@ import Login from "./components/Login";
 import { ToastContainer } from "react-toastify";
 
 const App = () => {
+  const [theme, setTheme] = useState(() => localStorage.getItem("admin-theme") || "dark");
   const [token, setToken] = useState(
     localStorage.getItem("token") ? localStorage.getItem("token") : ""
   );
@@ -17,24 +18,31 @@ const App = () => {
     localStorage.setItem("token", token);
   }, [token]);
 
+  useEffect(() => {
+    localStorage.setItem("admin-theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((current) => current === "dark" ? "light" : "dark");
+
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <ToastContainer />
+    <div className={`admin-shell min-h-screen ${theme === "dark" ? "admin-theme-dark" : "admin-theme-light"}`}>
+      <ToastContainer theme={theme} />
       {token === "" ? (
-        <Login setToken={setToken} />
+        <Login setToken={setToken} theme={theme} toggleTheme={toggleTheme} />
       ) : (
         <>
-          <Navbar setToken={setToken} />
-          <hr />
-          <div className="flex w-full">
+          <Navbar setToken={setToken} theme={theme} toggleTheme={toggleTheme} />
+          <div className="admin-layout flex w-full">
             <Sidebar />
-            <div className="w-[70%] mx-auto ml-[max(5vw,25px)] my-8 text-gray-600 text-base">
+            <main className="admin-main min-w-0 flex-1 px-4 py-6 text-base sm:px-6 md:px-10 md:py-8">
               <Routes>
+                <Route path="/" element={<Navigate to="/add" replace />} />
                 <Route path="/add" element={<Add token={token} />} />
                 <Route path="/list" element={<List token={token} />} />
                 <Route path="/orders" element={<Orders token={token} />} />
+                <Route path="*" element={<Navigate to="/add" replace />} />
               </Routes>
-            </div>
+            </main>
           </div>
         </>
       )}
