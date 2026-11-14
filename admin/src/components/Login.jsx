@@ -3,13 +3,16 @@ import React, { useState } from "react";
 import { backendUrl } from "../config";
 import { toast } from "react-toastify";
 
-const Login = ({ setToken }) => {
+const Login = ({ setToken, theme, toggleTheme }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmitHandler = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
     try {
-      e.preventDefault();
       const response = await axios.post(backendUrl + "/api/user/admin", {
         email,
         password,
@@ -20,48 +23,69 @@ const Login = ({ setToken }) => {
         toast.error(response.data.message);
       }
     } catch (error) {
-      console.log(error);
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || "Cannot reach the API. Check the backend service and CORS configuration.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center w-full">
-      <div className="bg-white shadow-md rounded-lg px-8 py-6 max-w-md">
-        <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
-        <form onSubmit={onSubmitHandler}>
-          <div className="mb-3 min-w-72">
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </p>
+    <div className="admin-login-page">
+      <form className="admin-login-card" onSubmit={onSubmitHandler}>
+        <div className="admin-login-topline">
+          <span className="admin-wordmark">Forever<span>.</span></span>
+          <button type="button" onClick={toggleTheme} className="admin-theme-toggle" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
+            <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
+        </div>
+        <div className="admin-login-heading">
+          <p className="admin-eyebrow">STORE MANAGEMENT</p>
+          <h1>Welcome back</h1>
+          <p>Sign in to manage your catalog and orders.</p>
+        </div>
+        <div className="admin-form-field">
+          <label htmlFor="admin-email">Email address</label>
+          <input
+            id="admin-email"
+            onChange={(e) => setEmail(e.target.value)}
+            value={email}
+            className="admin-field"
+            type="email"
+            autoComplete="username"
+            placeholder="name@example.com"
+            required
+          />
+        </div>
+        <div className="admin-form-field">
+          <label htmlFor="admin-password">Password</label>
+          <div className="admin-password-field">
             <input
-              onChange={(e) => setEmail(e.target.value)}
-              value={email}
-              className="rounded-md w-full px-3 py-2 border border-gray-300 outline-none"
-              type="email"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
-          <div className="mb-3 min-w-72">
-            <p className="text-sm font-medium text-gray-700 mb-2">Password</p>
-            <input
+              id="admin-password"
               onChange={(e) => setPassword(e.target.value)}
               value={password}
-              className="rounded-md w-full px-3 py-2 border border-gray-300 outline-none"
-              type="password"
+              className="admin-field"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
               placeholder="Enter your password"
               required
             />
+            <button
+              type="button"
+              className="admin-password-toggle"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
           </div>
-          <button
-            className="mt-2 w-full py-2 px-4 rounded-md text-white bg-black"
-            type="submit"
-          >
-            Login
-          </button>
-        </form>
-      </div>
+        </div>
+        <button className="admin-login-submit" type="submit" disabled={submitting}>
+          {submitting ? "Signing in…" : "Sign in to dashboard"}
+        </button>
+        <p className="admin-login-footnote">Authorized administrators only</p>
+      </form>
     </div>
   );
 };

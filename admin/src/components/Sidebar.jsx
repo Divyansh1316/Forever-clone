@@ -4,33 +4,39 @@ import { assets } from "../assets/assets.js";
 
 const Sidebar = () => {
   return (
-    <div className="w-[18%] min-h-screen border-r-2">
-      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px]">
+    <aside className="admin-sidebar">
+      <nav aria-label="Admin sections" className="flex flex-col gap-2 px-2 pt-6 md:px-4">
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          aria-label="Add product"
+          title="Add product"
+          className="admin-nav-link flex items-center gap-3 rounded-xl border px-3 py-3 text-sm"
           to="/add"
         >
           <img className="w-5 h-5" src={assets.add_icon} alt="" />
-          <p className="hidden md:block">Add Items</p>
+          <span className="hidden md:block">Add product</span>
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          aria-label="Products"
+          title="Products"
+          className="admin-nav-link flex items-center gap-3 rounded-xl border px-3 py-3 text-sm"
           to="/list"
         >
           <img className="w-5 h-5" src={assets.order_icon} alt="" />
-          <p className="hidden md:block">List Items</p>
+          <span className="hidden md:block">Products</span>
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          aria-label="Orders"
+          title="Orders"
+          className="admin-nav-link flex items-center gap-3 rounded-xl border px-3 py-3 text-sm"
           to="/orders"
         >
           <img className="w-5 h-5" src={assets.order_icon} alt="" />
-          <p className="hidden md:block">Orders</p>
+          <span className="hidden md:block">Orders</span>
         </NavLink>
-      </div>
-    </div>
+      </nav>
+    </aside>
   );
 };
 

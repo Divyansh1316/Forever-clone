@@ -1,9 +1,13 @@
 import "dotenv/config";
 
-const configuredOrigins = (process.env.CORS_ORIGINS || "")
+const configuredOrigins = [
+  "https://forever-clone-frontend.onrender.com",
+  "https://forever-clone-admin.onrender.com",
+  ...(process.env.CORS_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean),
+];
 
 if (process.env.NODE_ENV !== "production") {
   configuredOrigins.push("http://localhost:5173", "http://localhost:5174");

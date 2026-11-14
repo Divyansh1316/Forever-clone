@@ -66,6 +66,8 @@ flowchart TD
 
 User and admin routes verify signed tokens in backend middleware. Admin routes additionally require the admin role. Product listing and review reading are public; review submission requires a signed-in user.
 
+The API uses an exact-origin CORS allowlist. The deployed Forever storefront and admin origins are included in the backend defaults; other frontend hostnames must be added as exact origins in the backend deployment configuration.
+
 ## Order and payment flow
 
 ```mermaid
@@ -107,7 +109,7 @@ The browser's submitted price is not trusted for checkout totals. The API reload
 
 | Area | Routes | Access |
 | --- | --- | --- |
-| Accounts | `POST /api/user/register`, `POST /api/user/login`, `GET /api/user/profile` | Public for sign-in and registration; profile requires a user token |
+| Accounts | `POST /api/user/register`, `/login`, `/admin`, `GET /api/user/profile` | Public endpoints; admin login still checks configured administrator credentials. Profile requires a user token |
 | Products | `GET /api/product/list`, `GET /api/product/:productId/reviews` | Public |
 | Reviews | `POST /api/product/:productId/reviews` | User token |
 | Cart | `POST /api/cart/get`, `/add`, `/update` | User token |

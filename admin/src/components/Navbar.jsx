@@ -1,17 +1,24 @@
 import React from "react";
-import { assets } from "../assets/assets.js";
 
-const Navbar = ({ setToken }) => {
+const Navbar = ({ setToken, theme, toggleTheme }) => {
   return (
-    <div className="flex items-center py-2 px-[4%] justify-between">
-      <img className="w-[max(10%,80px)]" src={assets.logo} alt="" />
-      <button
-        onClick={() => setToken("")}
-        className="bg-gray-600 text-white px-5 py-2 sm:px-7 sm:py-2 rounded-full text-xs sm:text-sm"
-      >
-        Logout
-      </button>
-    </div>
+    <header className="admin-topbar">
+      <div className="admin-brand-lockup">
+        <span className="admin-wordmark">Forever<span>.</span></span>
+        <span className="admin-brand-divider" />
+        <span className="admin-brand-caption">STORE ADMIN</span>
+      </div>
+      <div className="admin-topbar-actions">
+        <button type="button" onClick={toggleTheme} className="admin-theme-toggle" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
+          <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+          <span className="hidden sm:inline">{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+        </button>
+        <span className="admin-account-label">Administrator</span>
+        <button type="button" onClick={() => setToken("")} className="admin-logout-button">
+          Sign out
+        </button>
+      </div>
+    </header>
   );
 };
 
