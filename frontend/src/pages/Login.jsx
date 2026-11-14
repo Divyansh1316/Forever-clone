@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { ShopContext } from "../context/ShopContext.js";
 import axios from "axios";
 import { toast } from "react-toastify";
+import BrandLogo from "../components/BrandLogo";
 
 const Login = ({ initialState = "Login" }) => {
   const [currentState, setCurrentState] = useState(initialState);
@@ -54,75 +55,82 @@ const Login = ({ initialState = "Login" }) => {
   }, [navigate, token]);
 
   return (
-    <form
-      onSubmit={onSubmitHandler}
-      className="mx-auto mt-14 flex w-[90%] flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-gray-800 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 sm:max-w-96 sm:p-8"
-    >
-      <div className="inline-flex items-center gap-2 mb-2 mt-10">
-        <p className="prata-regular text-3xl">{currentState}</p>
-        <hr className="border-none h-[1.5px] w-8 bg-gray-800 dark:bg-zinc-300" />
-      </div>
-      {currentState === "Login" ? (
-        ""
-      ) : (
-        <input
-          onChange={(e) => setName(e.target.value)}
-          value={name}
-          type="text"
-          className="w-full rounded-md border border-gray-800 bg-white px-3 py-2 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
-          placeholder="Name"
-          required
-        />
-      )}
-      <input
-        onChange={(e) => setEmail(e.target.value)}
-        value={email}
-        type="email"
-        className="w-full rounded-md border border-gray-800 bg-white px-3 py-2 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
-        placeholder="Email"
-        required
-      />
-      <div className="relative w-full">
-        <input
-          onChange={(e) => setPassword(e.target.value)}
-          value={password}
-          type={showPassword ? "text" : "password"}
-          autoComplete={currentState === "Login" ? "current-password" : "new-password"}
-          className="w-full rounded-md border border-gray-800 bg-white px-3 py-2 pr-16 focus:border-rose-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800"
-          placeholder="Password"
-          required
-        />
-        <button
-          type="button"
-          onClick={() => setShowPassword((visible) => !visible)}
-          aria-label={showPassword ? "Hide password" : "Show password"}
-          aria-pressed={showPassword}
-          className="absolute inset-y-0 right-3 text-xs text-gray-600 hover:text-gray-900 dark:text-zinc-300 dark:hover:text-white"
-        >
-          {showPassword ? "Hide" : "Show"}
-        </button>
-      </div>
-      <div className="mt-[-8px] flex w-full justify-end text-sm">
-        {currentState === "Login" ? (
-          <p
-            onClick={() => setCurrentState("Sign Up")}
-            className="cursor-pointer"
-          >
-            Create account
-          </p>
-        ) : (
-          <p
-            onClick={() => setCurrentState("Login")}
-            className="cursor-pointer"
-          >
-            Login Here
-          </p>
+    <section className="auth-page">
+      <form onSubmit={onSubmitHandler} className="auth-card">
+        <div className="auth-card-topline">
+          <BrandLogo className="w-28" />
+          <span className="auth-eyebrow">YOUR ACCOUNT</span>
+        </div>
+        <div className="auth-heading">
+          <h1 className="prata-regular">{currentState === "Login" ? "Welcome back" : "Create your account"}</h1>
+          <p>{currentState === "Login" ? "Sign in to continue to Forever." : "Join Forever for a more personal shopping experience."}</p>
+        </div>
+
+        {currentState === "Sign Up" && (
+          <label className="auth-field-group">
+            <span>Name</span>
+            <input
+              onChange={(event) => setName(event.target.value)}
+              value={name}
+              type="text"
+              autoComplete="name"
+              className="auth-field"
+              placeholder="Your name"
+              required
+            />
+          </label>
         )}
-      </div>
-      <button className="mt-4 rounded-md bg-black px-8 py-2 font-light text-white dark:bg-zinc-100 dark:text-zinc-900">
-        {currentState === "Login" ? "Sign In" : "Sign Up"}
-      </button>
-    </form>
+
+        <label className="auth-field-group">
+          <span>Email address</span>
+          <input
+            onChange={(event) => setEmail(event.target.value)}
+            value={email}
+            type="email"
+            autoComplete="email"
+            className="auth-field"
+            placeholder="name@example.com"
+            required
+          />
+        </label>
+
+        <div className="auth-field-group">
+          <label htmlFor="auth-password">Password</label>
+          <div className="auth-password-wrap">
+            <input
+              id="auth-password"
+              onChange={(event) => setPassword(event.target.value)}
+              value={password}
+              type={showPassword ? "text" : "password"}
+              autoComplete={currentState === "Login" ? "current-password" : "new-password"}
+              className="auth-field auth-password-field"
+              placeholder="Enter your password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="auth-password-toggle"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
+        <div className="auth-account-switch">
+          <span>{currentState === "Login" ? "New to Forever?" : "Already have an account?"}</span>
+          <button type="button" onClick={() => setCurrentState(currentState === "Login" ? "Sign Up" : "Login")}>
+            {currentState === "Login" ? "Create account" : "Sign in"}
+          </button>
+        </div>
+        <button className="auth-submit" type="submit">
+          {currentState === "Login" ? "Sign In" : "Create account"}
+        </button>
+        <p className="auth-security-note">Your account details are protected.</p>
+      </form>
+    </section>
   );
 };
 
