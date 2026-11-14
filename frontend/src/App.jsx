@@ -36,9 +36,10 @@ const NotFound = () => (
 const App = () => {
   const { theme } = useContext(ShopContext);
   const { pathname } = useLocation();
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
   const toastTheme = theme === "system" ? "auto" : theme;
   return (
-    <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]">
+    <div className={`site-shell px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw] ${isAuthPage ? "auth-site" : ""}`}>
       <ToastContainer theme={toastTheme} />
       <ScrollToTop />
       <Navbar />

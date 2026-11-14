@@ -34,19 +34,30 @@ a.active hr { transform: scaleX(1); }
 
 .auth-page {
   display: grid;
-  min-height: 70vh;
+  min-height: 56vh;
   place-items: center;
-  padding: 56px 18px;
-  background:
-    radial-gradient(ellipse at 12% 12%, rgb(197 134 165 / 18%), transparent 36%),
-    radial-gradient(ellipse at 90% 90%, rgb(197 134 165 / 12%), transparent 38%);
+  padding: 36px 18px;
+}
+.auth-site {
+  --auth-accent: #e94868;
+  background-color: #faf9fa;
+  background-image:
+    radial-gradient(ellipse at 12% 8%, rgb(233 72 104 / 13%), transparent 36%),
+    radial-gradient(ellipse at 90% 88%, rgb(76 29 43 / 7%), transparent 38%);
+}
+.dark .auth-site {
+  --auth-accent: #fb7185;
+  background-color: #18181b;
+  background-image:
+    radial-gradient(ellipse at 12% 8%, rgb(251 113 133 / 15%), transparent 36%),
+    radial-gradient(ellipse at 90% 88%, rgb(76 29 43 / 42%), transparent 38%);
 }
 .auth-card {
   display: flex;
   width: min(100%, 440px);
   flex-direction: column;
-  gap: 19px;
-  padding: clamp(24px, 6vw, 42px);
+  gap: 14px;
+  padding: clamp(22px, 4vw, 32px) clamp(24px, 6vw, 42px);
   border: 1px solid #e5e3e7;
   border-radius: 24px;
   color: #25242a;
@@ -60,9 +71,8 @@ a.active hr { transform: scaleX(1); }
   box-shadow: 0 28px 90px rgb(0 0 0 / 34%);
 }
 .auth-card-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.auth-eyebrow { color: #a9607f; font-size: 10px; font-weight: 700; letter-spacing: .16em; }
-.dark .auth-eyebrow { color: #d995b1; }
-.auth-heading { margin: 14px 0 2px; }
+.auth-eyebrow { color: var(--auth-accent); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.auth-heading { margin: 8px 0 0; }
 .auth-heading h1 { margin: 0; font-size: clamp(29px, 5vw, 36px); font-weight: 400; letter-spacing: -.035em; }
 .auth-heading p { margin: 9px 0 0; color: #71717a; font-size: 14px; line-height: 1.5; }
 .dark .auth-heading p { color: #b7b2bd; }
@@ -80,20 +90,18 @@ a.active hr { transform: scaleX(1); }
   font-weight: 400;
   transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
 }
-.auth-field:focus { border-color: #c586a5; box-shadow: 0 0 0 3px rgb(197 134 165 / 17%); }
+.auth-field:focus { border-color: var(--auth-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--auth-accent) 17%, transparent); }
 .auth-field::placeholder { color: #929099; opacity: 1; }
 .dark .auth-field { border-color: #45414a; color: #f4f1f5; background: #26232a; }
 .dark .auth-field::placeholder { color: #a49eaa; }
 .auth-password-wrap { position: relative; }
 .auth-password-field { padding-right: 68px; }
-.auth-password-toggle { position: absolute; top: 50%; right: 12px; padding: 5px; transform: translateY(-50%); border: 0; color: #9b5574; background: transparent; font-size: 12px; font-weight: 600; }
-.dark .auth-password-toggle { color: #e4a0bc; }
+.auth-password-toggle { position: absolute; top: 50%; right: 12px; padding: 5px; transform: translateY(-50%); border: 0; color: var(--auth-accent); background: transparent; font-size: 12px; font-weight: 600; }
 .auth-account-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: -2px; color: #74717a; font-size: 13px; }
 .dark .auth-account-switch { color: #b7b2bd; }
-.auth-account-switch button { padding: 2px 0; border: 0; color: #9b5574; background: transparent; font-size: inherit; font-weight: 600; }
-.dark .auth-account-switch button { color: #e4a0bc; }
+.auth-account-switch button { padding: 2px 0; border: 0; color: var(--auth-accent); background: transparent; font-size: inherit; font-weight: 600; }
 .auth-submit { min-height: 49px; margin-top: 2px; border: 0; border-radius: 10px; color: #fff; background: #25232a; font-size: 14px; font-weight: 600; }
-.dark .auth-submit { color: #281b22; background: #c586a5; }
+.dark .auth-submit { color: #281b22; background: var(--auth-accent); }
 .auth-submit:hover { filter: brightness(1.08); }
 .auth-security-note { margin: -5px 0 0; color: #95919a; text-align: center; font-size: 11px; }
 .dark .auth-security-note { color: #aaa4af; }
