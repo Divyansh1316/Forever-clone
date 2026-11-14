@@ -20,6 +20,18 @@ a.active hr { transform: scaleX(1); }
   font-family: Outfit;
 }
 
+.forever-logo { position: relative; display: inline-block; flex: none; }
+.forever-logo-image { display: block; width: 100%; height: auto; }
+.forever-logo-dot {
+  position: absolute;
+  top: 50.7%;
+  right: 0;
+  width: 7.23%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #c586a5;
+}
+
 .prata-regular {
   font-family: "Prata", serif;
   font-weight: 400;

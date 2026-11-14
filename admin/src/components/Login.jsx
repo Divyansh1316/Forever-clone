@@ -2,6 +2,7 @@ import axios from "axios";
 import React, { useState } from "react";
 import { backendUrl } from "../config";
 import { toast } from "react-toastify";
+import brandLogo from "../assets/forever-logo.png";
 
 const Login = ({ setToken, theme, toggleTheme }) => {
   const [email, setEmail] = useState("");
@@ -33,7 +34,10 @@ const Login = ({ setToken, theme, toggleTheme }) => {
     <div className="admin-login-page">
       <form className="admin-login-card" onSubmit={onSubmitHandler}>
         <div className="admin-login-topline">
-          <span className="admin-wordmark">Forever<span>.</span></span>
+          <span className="admin-logo-wrap admin-login-logo">
+            <img src={brandLogo} className="admin-logo-image" alt="Forever" />
+            <span className="admin-logo-dot" aria-hidden="true" />
+          </span>
           <button type="button" onClick={toggleTheme} className="admin-theme-toggle" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
             <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
             {theme === "dark" ? "Light" : "Dark"}

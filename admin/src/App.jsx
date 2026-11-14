@@ -31,7 +31,7 @@ const App = () => {
         <Login setToken={setToken} theme={theme} toggleTheme={toggleTheme} />
       ) : (
         <>
-          <Navbar setToken={setToken} theme={theme} toggleTheme={toggleTheme} />
+          <Navbar setToken={setToken} theme={theme} setTheme={setTheme} />
           <div className="admin-layout flex w-full">
             <Sidebar />
             <main className="admin-main min-w-0 flex-1 px-4 py-6 text-base sm:px-6 md:px-10 md:py-8">
