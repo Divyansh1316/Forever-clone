@@ -56,7 +56,7 @@ const Login = ({ initialState = "Login" }) => {
 
   return (
     <section className="auth-page">
-      <form onSubmit={onSubmitHandler} className="auth-card">
+      <form key={currentState} onSubmit={onSubmitHandler} className="auth-card auth-card-enter">
         <div className="auth-card-topline">
           <BrandLogo className="w-28" />
           <span className="auth-eyebrow">YOUR ACCOUNT</span>

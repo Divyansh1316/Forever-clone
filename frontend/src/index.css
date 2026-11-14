@@ -64,6 +64,7 @@ a.active hr { transform: scaleX(1); }
   background: #fff;
   box-shadow: 0 24px 80px rgb(25 18 23 / 12%);
 }
+.auth-card-enter { animation: page-enter .32s ease-out both; }
 .dark .auth-card {
   border-color: #39363e;
   color: #f3f1f4;
